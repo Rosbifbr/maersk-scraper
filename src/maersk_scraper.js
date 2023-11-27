@@ -32,18 +32,6 @@ module.exports = {
         })
         return response.json()
     },
-    get_port_code: async (name) => {
-        const processed_query = "carrierCodes=" + encodeURIComponent(CARRIER_CODES)
-        const response = await fetch(`https://api.maersk.com/synergy/schedules/active-ports?${processed_query}`, {
-            "headers": {
-                "consumer-key": API_KEY,
-                "Referer": "https://www.maersk.com/",
-                "Referrer-Policy": "strict-origin-when-cross-origin"
-            },
-            "method": "GET"
-        })
-        return response.json()
-    },
     get_port_events: async (port_code, date_start, date_end) => {
         let query_params = {
             portCode: port_code,
@@ -65,7 +53,27 @@ module.exports = {
         })
         return response.json()
     },
-    get_ship_events: async (ships, date_start, date_end) => {
-        
+    get_ship_events: async (ship_info) => {
+        //This request needs more headers due to Authorization issues.
+        const response = await fetch("https://api.maersk.com/synergy/deadlines/queries", {
+            "headers": {
+                "accept": "application/json",
+                "accept-language": "en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7,de-DE;q=0.6,de;q=0.5",
+                "consumer-key": "uXe7bxTHLY0yY0e8jnS6kotShkLuAAqG",
+                "content-type": "application/json",
+                "sec-ch-ua": "\"Google Chrome\";v=\"119\", \"Chromium\";v=\"119\", \"Not?A_Brand\";v=\"24\"",
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": "\"Linux\"",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "same-site",
+                "Referer": "https://www.maersk.com/",
+                "Referrer-Policy": "strict-origin-when-cross-origin"
+            },
+            "body": JSON.stringify(ship_info),
+            "method": "POST"
+        })
+
+        return response.json()
     }
 }
