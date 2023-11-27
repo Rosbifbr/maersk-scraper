@@ -1,6 +1,6 @@
 //TODO: Implment a key renewal method in case it is changed.
 //API authentication is done with a static key.
-var API_KEY //= "uXe7bxTHLY0yY0e8jnS6kotShkLuAAqG"
+var API_KEY
 const CARRIER_CODES = "MAEU,MCPU,SEAU,SEJJ"
 
 //Dirtilly get the API key in case the developers change it.
@@ -12,6 +12,7 @@ const renew_api_key = async () => {
     
     //Extract API key
     let collected_key = bundle.match(/,prod:\{.*?consumerKey:"(.+?)"/)[1]
+    console.log("Extracted maersk API key: " + collected_key)
     if (collected_key) return collected_key
     else throw new Error("Could not find API key in bundle")
 }
@@ -59,7 +60,7 @@ module.exports = {
             "headers": {
                 "accept": "application/json",
                 "accept-language": "en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7,de-DE;q=0.6,de;q=0.5",
-                "consumer-key": "uXe7bxTHLY0yY0e8jnS6kotShkLuAAqG",
+                "consumer-key": API_KEY,
                 "content-type": "application/json",
                 "sec-ch-ua": "\"Google Chrome\";v=\"119\", \"Chromium\";v=\"119\", \"Not?A_Brand\";v=\"24\"",
                 "sec-ch-ua-mobile": "?0",
@@ -73,7 +74,6 @@ module.exports = {
             "body": JSON.stringify(ship_info),
             "method": "POST"
         })
-
         return response.json()
     }
 }
