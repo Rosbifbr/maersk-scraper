@@ -1,5 +1,6 @@
 const express = require('express')
-const maersk_scraper = require('../src/maersk_scraper')
+const maersk_scraper = require('../src/maersk_scraper');
+const e = require('express');
 const router = express.Router()
 
 router.get('/maersk/active_ports', async (req, res) => {
@@ -66,6 +67,12 @@ router.get('/maersk/aggregated_ship_info', async (req, res) => {
     //Arrival voyage
     //Not pushing arrival voyages to query for now because the web client does not do that (maybe they don't have deadlines?)
     //If strongly confirmed afterwards, rewrite for loop as map for readability.
+    ship_events_query.push({
+      facilityId: event['marineContainerTerminalGeoCode'],
+      vesselMaerskCode: event['vesselMaerskCode'],
+      voyageNumber: event['arrivalVoyageNumber'],
+      deadlineGroupName: "DOCUMENTATION" //Static
+    })
   }
   ship_events = await maersk_scraper.get_ship_events(ship_events_query)
 
@@ -82,7 +89,11 @@ router.get('/maersk/aggregated_ship_info', async (req, res) => {
         "arrival": iso_date_time_to_string(port_event['arrivalTime']),
         "departure": iso_date_time_to_string(port_event['departureTime']),
         "deadlines": ship_events
-          .find(e => e['vesselMaerskCode'] == port_event['vesselMaerskCode'] && e['voyageNumber'] == port_event['departureVoyageNumber'])['deadlines']
+          .filter(e => 
+            e['vesselMaerskCode'] == port_event['vesselMaerskCode'] &&
+            ([port_event['departureVoyageNumber'], port_event['arrivalVoyageNumber']].includes(e['voyageNumber'])))
+          .map(e => e['deadlines'])
+          .flat(2) //TODO: improve performance
           .map(d => {
             return {
               event: d['deadlineName'],
