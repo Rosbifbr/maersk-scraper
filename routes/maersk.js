@@ -38,7 +38,7 @@ router.get('/maersk/aggregated_ship_info', async (req, res) => {
   for (let name of port_names.split(',')){
     let active_ports = await maersk_scraper.get_active_ports()
     let port = active_ports.ports.find(p => p['portName'] == name)
-    if (port) port_ids['name'] = port['portCode']
+    if (port) port_ids[name] = port['portCode']
     else {
       res.status(404).json({error: "One of the specified ports was not found."}) //Erroring out in case a port is not found
       return
@@ -55,7 +55,7 @@ router.get('/maersk/aggregated_ship_info', async (req, res) => {
 
   //Aggregate ship events also called "deadlines"
   let ship_events_query = []
-  for (event of port_events){
+  for (let event of port_events){
     //Departure voyage
     ship_events_query.push({
       facilityId: event['marineContainerTerminalGeoCode'],
@@ -67,47 +67,58 @@ router.get('/maersk/aggregated_ship_info', async (req, res) => {
     //Arrival voyage
     //Not pushing arrival voyages to query for now because the web client does not do that (maybe they don't have deadlines?)
     //If strongly confirmed afterwards, rewrite for loop as map for readability.
-    ship_events_query.push({
-      facilityId: event['marineContainerTerminalGeoCode'],
-      vesselMaerskCode: event['vesselMaerskCode'],
-      voyageNumber: event['arrivalVoyageNumber'],
-      deadlineGroupName: "DOCUMENTATION" //Static
-    })
+    // ship_events_query.push({
+    //   facilityId: event['marineContainerTerminalGeoCode'],
+    //   vesselMaerskCode: event['vesselMaerskCode'],
+    //   voyageNumber: event['arrivalVoyageNumber'],
+    //   deadlineGroupName: "DOCUMENTATION" //Static
+    // })
   }
   ship_events = await maersk_scraper.get_ship_events(ship_events_query)
 
   //Finally, aggregate all our data and return to requester.
   let aggregated_info = []
   for (let port_event of port_events){
-    aggregated_info.push(
-      {
-        "port": port_event['portName'],
-        //"date": iso_date_to_string(new Date()), //TODO: I did not understand this param
-        "vessel": port_event['vesselName'],
-        "voyage": `${port_event['arrivalVoyageNumber']} | ${port_event['departureVoyageNumber']}`,
-        "terminal": port_event['marineContainerTerminalName'],
-        "arrival": iso_date_time_to_string(port_event['arrivalTime']),
-        "departure": iso_date_time_to_string(port_event['departureTime']),
-        "deadlines": ship_events
-          .filter(e => 
-            e['vesselMaerskCode'] == port_event['vesselMaerskCode'] &&
-            ([port_event['departureVoyageNumber'], port_event['arrivalVoyageNumber']].includes(e['voyageNumber'])))
-          .map(e => e['deadlines'])
-          .flat(2) //TODO: improve performance
-          .map(d => {
-            return {
-              event: d['deadlineName'],
-              date: iso_date_time_to_string(d['deadline'])
-            }
-          })
-      }
-    )
+    let ship_info = {
+      "port": port_event['portName'],
+      //"date": iso_date_to_string(new Date()), //TODO: I did not understand this param
+      "vessel": port_event['vesselName'],
+      "voyage": `${port_event['arrivalVoyageNumber']} | ${port_event['departureVoyageNumber']}`,
+      "terminal": port_event['marineContainerTerminalName'],
+      "arrival": iso_date_time_to_string(port_event['arrivalTime']),
+      "departure": iso_date_time_to_string(port_event['departureTime']),
+      "deadlines": ship_events
+        .filter(e => 
+          e['vesselMaerskCode'] == port_event['vesselMaerskCode'] &&
+          e['facilityId'] == port_event['marineContainerTerminalGeoCode'] &&
+          ([port_event['departureVoyageNumber'], port_event['arrivalVoyageNumber']].includes(e['voyageNumber'])))
+        .map(e => e['deadlines'])
+        .flat(2) //TODO: improve performance
+        .map(d => {
+          return {
+            event: d['deadlineName'],
+            date: iso_date_time_to_string(d['deadline'])
+          }
+        })
+    }
+
+    //Add missing types of deadlines (To comply with API spec)
+    fill_missing_deadline(ship_info,"Commercial Cargo Cutoff")
+    fill_missing_deadline(ship_info,"Shipping Instructions Deadline")
+    fill_missing_deadline(ship_info,"Advanced Manifest Submission Deadline")
+    fill_missing_deadline(ship_info,"Commercial Verified Gross Mass Deadline")
+    aggregated_info.push(ship_info)
   }
 
   res.json(aggregated_info)
 })
 
 //Private helpers
+const fill_missing_deadline = (ship_info, deadline) => {
+  if (!ship_info.deadlines.find(d => d.event == deadline))
+    ship_info.deadlines.push({event: deadline, date: null})
+}
+
 const date_params_fallback = () => {
   let now = new Date()
   date_start = now.toISOString().split('T')[0]
