@@ -106,13 +106,15 @@ const date_params_fallback = () => {
 }
 
 const iso_date_to_string = (date) => {
+  if (!date) return null
   let date_t = new Date(date)
   return `${date_t.getDate()}/${date_t.getMonth() + 1}/${date_t.getFullYear()}`
 }
 
 const iso_date_time_to_string = (date) => {
+  if (!date) return null
   let date_t = new Date(date)
-  return `${date_t.getDate()}/${date_t.getMonth() + 1}/${date_t.getFullYear()}` + " " +  date_t.toTimeString().split(' ')[0]
+  return iso_date_to_string(date) + " " +  date_t.toTimeString().split(' ')[0]
 }
 
 module.exports = router
