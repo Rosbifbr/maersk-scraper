@@ -35,8 +35,8 @@ router.get('/maersk/aggregated_ship_info', async (req, res) => {
   let port_events = []
   let ship_events = []
 
+  let active_ports = await maersk_scraper.get_active_ports()
   for (let name of port_names.split(',')){
-    let active_ports = await maersk_scraper.get_active_ports()
     let port = active_ports.ports.find(p => p['portName'] == name)
     if (port) port_ids[name] = port['portCode']
     else {
